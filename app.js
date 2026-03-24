@@ -401,6 +401,10 @@ function exportPDF() {
 }
 
 function buildPDF(data) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert('Biblioteca jsPDF ainda carregando. Tente novamente em alguns segundos.');
+        return;
+    }
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF('p', 'mm', 'a4');
     var W = 210, H = 297;
