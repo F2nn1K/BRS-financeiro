@@ -1,4 +1,4 @@
-const SHEET_CSV_URL = '/.netlify/functions/dados';
+const SHEET_CSV_URL = location.hostname === 'localhost' ? '/api/dados' : '/.netlify/functions/dados';
 const REFRESH_INTERVAL = 30000;
 
 const COLORS = {
@@ -368,13 +368,283 @@ async function fetchData() {
         var text = await response.text();
         var data = parseCSV(text);
         if (data.length > 0) {
+            lastData = data;
             updateDashboard(data);
             document.getElementById('loadingOverlay').classList.add('hidden');
+            document.getElementById('btnExportPdf').disabled = false;
         }
     } catch (err) {
         console.error('Erro ao buscar dados:', err);
         document.getElementById('lastUpdate').textContent = 'Erro ao atualizar - tentando novamente...';
     }
+}
+
+// --- PDF Export ---
+
+var lastData = null;
+
+function exportPDF() {
+    if (!lastData || lastData.length === 0) return;
+    var btn = document.getElementById('btnExportPdf');
+    btn.classList.add('exporting');
+    btn.textContent = 'Gerando PDF...';
+
+    setTimeout(function() {
+        try {
+            buildPDF(lastData);
+        } catch (e) {
+            console.error('Erro ao gerar PDF:', e);
+        }
+        btn.classList.remove('exporting');
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg> Exportar PDF';
+    }, 100);
+}
+
+function buildPDF(data) {
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF('p', 'mm', 'a4');
+    var W = 210, H = 297;
+    var margin = 15;
+    var contentW = W - margin * 2;
+    var y = 0;
+
+    var total = data.length;
+    var interesseCount = data.filter(function(r) {
+        return findCol(r, 'interesse') && findCol(r, 'interesse').indexOf('com certeza') !== -1;
+    }).length;
+    var dificCount = data.filter(function(r) { return findCol(r, 'dificuldade') === 'Sim'; }).length;
+    var emergCount = data.filter(function(r) {
+        return findCol(r, 'emergencia') && findCol(r, 'emergencia').indexOf('conseguiria') !== -1 && findCol(r, 'emergencia').substring(0,3) !== 'Sim';
+    }).length;
+    var empAtual = data.filter(function(r) {
+        var v = findCol(r, 'atual');
+        return v && v.indexOf('nenhum') === -1 && v.trim() !== '';
+    }).length;
+
+    // --- PAGE 1: Cover + KPIs ---
+    // Dark background
+    doc.setFillColor(10, 14, 26);
+    doc.rect(0, 0, W, H, 'F');
+
+    // Header bar
+    doc.setFillColor(26, 34, 54);
+    doc.rect(0, 0, W, 48, 'F');
+
+    // Blue accent line
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 48, W, 1.5, 'F');
+
+    // Logo text
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(59, 130, 246);
+    doc.text('BRS', margin, 22);
+
+    // Divider
+    doc.setDrawColor(51, 65, 85);
+    doc.setLineWidth(0.3);
+    doc.line(margin + 28, 12, margin + 28, 30);
+
+    // Title
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Perfil Financeiro dos Colaboradores', margin + 33, 19);
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    var dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    doc.text(dateStr, margin + 33, 27);
+
+    // Report badge
+    doc.setFillColor(59, 130, 246);
+    doc.roundedRect(W - margin - 45, 14, 45, 10, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('RELATORIO BI', W - margin - 40, 20.5);
+
+    y = 62;
+
+    // Section: KPIs
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('INDICADORES PRINCIPAIS', margin, y);
+    y += 8;
+
+    var kpis = [
+        { label: 'Total de Respostas', value: String(total), sub: 'colaboradores responderam', color: [96, 165, 250] },
+        { label: 'Interesse em Credito', value: pct(interesseCount, total) + '%', sub: interesseCount + ' de ' + total + ' colaboradores', color: [16, 185, 129] },
+        { label: 'Dificuldade c/ Credito', value: pct(dificCount, total) + '%', sub: dificCount + ' colaboradores', color: [245, 158, 11] },
+        { label: 'Sem Reserva Emergencial', value: pct(emergCount, total) + '%', sub: emergCount + ' colaboradores', color: [239, 68, 68] },
+        { label: 'Ja Possuem Emprestimo', value: pct(empAtual, total) + '%', sub: empAtual + ' colaboradores', color: [139, 92, 246] },
+    ];
+
+    var kpiW = (contentW - 8) / 2.5;
+    var kpiH = 32;
+    var col = 0;
+    var startY = y;
+
+    kpis.forEach(function(kpi, i) {
+        var kx = margin + (i % 3) * (kpiW + 4);
+        var ky = startY + Math.floor(i / 3) * (kpiH + 4);
+
+        // Card bg
+        doc.setFillColor(26, 34, 54);
+        doc.roundedRect(kx, ky, kpiW, kpiH, 3, 3, 'F');
+
+        // Top accent
+        doc.setFillColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+        doc.rect(kx, ky, kpiW, 1.5, 'F');
+
+        // Label
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(kpi.label.toUpperCase(), kx + 5, ky + 8);
+
+        // Value
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+        doc.text(kpi.value, kx + 5, ky + 21);
+
+        // Sub
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(kpi.sub, kx + 5, ky + 28);
+    });
+
+    y = startY + kpiH * 2 + 12 + 8;
+
+    // --- CHARTS SECTION ---
+    var chartPairs = [
+        { section: 'PERFIL DOS COLABORADORES', charts: ['chartIdade', 'chartTempo', 'chartConta'] },
+        { section: 'COMPORTAMENTO FINANCEIRO', charts: ['chartPoupanca', 'chartEmergencia', 'chartDificuldade'] },
+        { section: 'INTERESSE NO CREDITO EMPRESARIAL', charts: ['chartInteresse', 'chartFinalidade'] },
+        { section: 'VALORES E PRAZOS', charts: ['chartValor', 'chartPrazo'] },
+        { section: 'BENEFICIOS E SITUACAO ATUAL', charts: ['chartBeneficio', 'chartAtual'] },
+        { section: 'INTERESSE EM NOVOS BENEFICIOS', charts: ['chartFuturo'] },
+    ];
+
+    var chartTitles = {
+        chartIdade: 'Faixa Etaria',
+        chartTempo: 'Tempo de Empresa',
+        chartConta: 'Tipo de Conta Bancaria',
+        chartPoupanca: 'Habito de Poupanca',
+        chartEmergencia: 'Capacidade em Emergencia',
+        chartDificuldade: 'Dificuldade com Credito',
+        chartInteresse: 'Interesse no Credito em Folha',
+        chartFinalidade: 'Finalidade do Credito',
+        chartValor: 'Valor de Emprestimo Desejado',
+        chartPrazo: 'Prazo de Pagamento',
+        chartBeneficio: 'Beneficio Financeiro Mais Util',
+        chartAtual: 'Emprestimo/Credito Atual',
+        chartFuturo: 'Interesse em Novos Beneficios',
+    };
+
+    chartPairs.forEach(function(group) {
+        var chartImgs = [];
+        group.charts.forEach(function(id) {
+            var canvas = document.getElementById(id);
+            if (canvas) {
+                chartImgs.push({ id: id, img: canvas.toDataURL('image/png', 1.0) });
+            }
+        });
+
+        if (chartImgs.length === 0) return;
+
+        var sectionH = 8;
+        var chartH = chartImgs.length <= 2 ? 62 : 55;
+        var totalH = sectionH + chartH + 6;
+
+        if (y + totalH > H - 20) {
+            doc.addPage();
+            doc.setFillColor(10, 14, 26);
+            doc.rect(0, 0, W, H, 'F');
+            y = 15;
+        }
+
+        // Section title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(group.section, margin, y + 5);
+        y += sectionH + 2;
+
+        if (chartImgs.length === 1) {
+            var cw = contentW * 0.55;
+            doc.setFillColor(26, 34, 54);
+            doc.roundedRect(margin, y, cw, chartH, 3, 3, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(7.5);
+            doc.setTextColor(241, 245, 249);
+            doc.text(chartTitles[chartImgs[0].id] || '', margin + 5, y + 7);
+
+            doc.addImage(chartImgs[0].img, 'PNG', margin + 3, y + 10, cw - 6, chartH - 14);
+        } else if (chartImgs.length === 2) {
+            var cw2 = (contentW - 4) / 2;
+            chartImgs.forEach(function(ci, idx) {
+                var cx = margin + idx * (cw2 + 4);
+                doc.setFillColor(26, 34, 54);
+                doc.roundedRect(cx, y, cw2, chartH, 3, 3, 'F');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                doc.setTextColor(241, 245, 249);
+                doc.text(chartTitles[ci.id] || '', cx + 5, y + 7);
+
+                doc.addImage(ci.img, 'PNG', cx + 3, y + 10, cw2 - 6, chartH - 14);
+            });
+        } else {
+            var cw3 = (contentW - 8) / 3;
+            chartImgs.forEach(function(ci, idx) {
+                var cx = margin + idx * (cw3 + 4);
+                doc.setFillColor(26, 34, 54);
+                doc.roundedRect(cx, y, cw3, chartH, 3, 3, 'F');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7);
+                doc.setTextColor(241, 245, 249);
+                doc.text(chartTitles[ci.id] || '', cx + 4, y + 7);
+
+                doc.addImage(ci.img, 'PNG', cx + 2, y + 10, cw3 - 4, chartH - 14);
+            });
+        }
+
+        y += chartH + 8;
+    });
+
+    // Footer on last page
+    var footerY = H - 10;
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerY - 4, W - margin, footerY - 4);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text('BRS Sistemas  |  Dashboard BI - Perfil Financeiro dos Colaboradores', margin, footerY);
+
+    var genDate = 'Gerado em ' + new Date().toLocaleString('pt-BR');
+    doc.text(genDate, W - margin - doc.getTextWidth(genDate), footerY);
+
+    // Add page numbers to all pages
+    var totalPages = doc.internal.getNumberOfPages();
+    for (var p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        var pageText = 'Pagina ' + p + ' de ' + totalPages;
+        doc.text(pageText, W / 2 - doc.getTextWidth(pageText) / 2, H - 5);
+    }
+
+    doc.save('BRS_Relatorio_Financeiro_' + new Date().toISOString().slice(0, 10) + '.pdf');
 }
 
 // --- Init ---

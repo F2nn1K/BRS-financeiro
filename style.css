@@ -272,6 +272,42 @@ body {
     font-size: 0.9rem;
 }
 
+.btn-export {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--info));
+    border: none;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.btn-export:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.btn-export:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-export:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-export.exporting {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 @media (max-width: 1200px) {
     .charts-grid { grid-template-columns: repeat(2, 1fr); }
     .chart-card.span-2 { grid-column: span 2; }
