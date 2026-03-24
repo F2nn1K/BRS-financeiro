@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRS | Dashboard - Perfil Financeiro Colaboradores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loader"></div>
+    <div class="loading-text">Carregando dados do formulário...</div>
+</div>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">BRS</div>
+        <div class="logo-divider"></div>
+        <div class="header-title">Perfil Financeiro dos Colaboradores</div>
+    </div>
+    <div class="header-right">
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            Tempo real
+        </div>
+        <div class="last-update" id="lastUpdate">Atualizando...</div>
+    </div>
+</header>
+
+<main class="container">
+    <div class="section-title">Indicadores Principais</div>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total de Respostas</div>
+            <div class="kpi-value" id="kpiTotal" style="color: var(--accent-light);">--</div>
+            <div class="kpi-sub" id="kpiTotalSub">colaboradores</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Interesse em Crédito</div>
+            <div class="kpi-value" id="kpiInteresse" style="color: var(--success);">--%</div>
+            <div class="kpi-sub" id="kpiInteresseSub">"Sim, com certeza"</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Dificuldade c/ Crédito</div>
+            <div class="kpi-value" id="kpiDificuldade" style="color: var(--warning);">--%</div>
+            <div class="kpi-sub" id="kpiDificuldadeSub">já tiveram dificuldade</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Sem Reserva Emergencial</div>
+            <div class="kpi-value" id="kpiEmergencia" style="color: var(--danger);">--%</div>
+            <div class="kpi-sub" id="kpiEmergenciaSub">não conseguiriam</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Já Possuem Empréstimo</div>
+            <div class="kpi-value" id="kpiEmprestimo" style="color: var(--info);">--%</div>
+            <div class="kpi-sub" id="kpiEmprestimoSub">consignado ou pessoal</div>
+        </div>
+    </div>
+
+    <div class="section-title">Perfil dos Colaboradores</div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Faixa Etária</div>
+                <div class="chart-badge">Distribuição</div>
+            </div>
+            <div class="chart-container"><canvas id="chartIdade"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Tempo de Empresa</div>
+                <div class="chart-badge">Distribuição</div>
+            </div>
+            <div class="chart-container"><canvas id="chartTempo"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Tipo de Conta Bancária</div>
+                <div class="chart-badge">Distribuição</div>
+            </div>
+            <div class="chart-container"><canvas id="chartConta"></canvas></div>
+        </div>
+    </div>
+
+    <div class="section-title">Comportamento Financeiro</div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Hábito de Poupança</div>
+                <div class="chart-badge">Mensal</div>
+            </div>
+            <div class="chart-container"><canvas id="chartPoupanca"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Capacidade em Emergência</div>
+                <div class="chart-badge">Financeira</div>
+            </div>
+            <div class="chart-container"><canvas id="chartEmergencia"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Dificuldade com Crédito Bancário</div>
+                <div class="chart-badge">Histórico</div>
+            </div>
+            <div class="chart-container"><canvas id="chartDificuldade"></canvas></div>
+        </div>
+    </div>
+
+    <div class="section-title">Interesse no Crédito Empresarial</div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Interesse no Crédito com Desconto em Folha</div>
+                <div class="chart-badge">Principal</div>
+            </div>
+            <div class="chart-container"><canvas id="chartInteresse"></canvas></div>
+        </div>
+        <div class="chart-card span-2">
+            <div class="chart-header">
+                <div class="chart-title">Finalidade do Crédito</div>
+                <div class="chart-badge">Para que usariam</div>
+            </div>
+            <div class="chart-container"><canvas id="chartFinalidade"></canvas></div>
+        </div>
+    </div>
+
+    <div class="section-title">Valores e Prazos</div>
+    <div class="charts-grid">
+        <div class="chart-card span-2">
+            <div class="chart-header">
+                <div class="chart-title">Valor de Empréstimo Desejado</div>
+                <div class="chart-badge">Faixa de valor</div>
+            </div>
+            <div class="chart-container"><canvas id="chartValor"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Prazo de Pagamento</div>
+                <div class="chart-badge">Preferência</div>
+            </div>
+            <div class="chart-container"><canvas id="chartPrazo"></canvas></div>
+        </div>
+    </div>
+
+    <div class="section-title">Benefícios e Situação Atual</div>
+    <div class="charts-grid">
+        <div class="chart-card span-2">
+            <div class="chart-header">
+                <div class="chart-title">Benefício Financeiro Mais Útil</div>
+                <div class="chart-badge">Preferência</div>
+            </div>
+            <div class="chart-container"><canvas id="chartBeneficio"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Empréstimo/Crédito Atual</div>
+                <div class="chart-badge">Situação</div>
+            </div>
+            <div class="chart-container"><canvas id="chartAtual"></canvas></div>
+        </div>
+    </div>
+
+    <div class="section-title">Interesse em Novos Benefícios</div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Interesse em Conhecer Novos Benefícios</div>
+                <div class="chart-badge">Futuro</div>
+            </div>
+            <div class="chart-container"><canvas id="chartFuturo"></canvas></div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
